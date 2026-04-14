@@ -112,7 +112,7 @@ safepaste-map.json
 ## Contributing
 
 SafePaste is open source. Bug reports, pattern additions, and PRs welcome at
-[github.com/safepaste/safepaste-vscode](https://github.com/safepaste/safepaste-vscode).
+[github.com/safepaste/safepaste-vscode](https://github.com/codingdemon-Atharva/SafePaste ).
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for how to add detection patterns
 and run the test suite.

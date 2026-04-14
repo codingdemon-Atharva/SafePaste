@@ -8,10 +8,10 @@
     "name": "SafePaste Contributors"
   },
   "license": "MIT",
-  "homepage": "https://github.com/safepaste/safepaste-vscode",
+  "homepage": "https://github.com/codingdemon-Atharva/SafePaste",
   "repository": {
     "type": "git",
-    "url": "https://github.com/safepaste/safepaste-vscode.git"
+    "url": "https://github.com/codingdemon-Atharva/SafePaste.git"
   },
   "bugs": {
     "url": "https://github.com/safepaste/safepaste-vscode/issues"
