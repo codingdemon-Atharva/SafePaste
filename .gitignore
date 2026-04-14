@@ -1,0 +1,59 @@
+```gitignore
+# ------------------------------
+# Node / Dependencies
+# ------------------------------
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ------------------------------
+# VS Code
+# ------------------------------
+.vscode/*
+!.vscode/extensions.json   # allow recommended extensions
+!.vscode/settings.json     # optional if you want to share settings
+
+# ------------------------------
+# OS Files
+# ------------------------------
+.DS_Store
+Thumbs.db
+
+# ------------------------------
+# Build / Package
+# ------------------------------
+*.vsix
+
+# ------------------------------
+# Environment / Secrets
+# ------------------------------
+.env
+.env.*
+*.key
+*.pem
+
+# ------------------------------
+# SafePaste specific (VERY IMPORTANT 🔐)
+# ------------------------------
+safepaste-map.json
+
+# ------------------------------
+# Logs
+# ------------------------------
+logs/
+*.log
+
+# ------------------------------
+# Testing / Coverage
+# ------------------------------
+coverage/
+
+# ------------------------------
+# Misc
+# ------------------------------
+*.tmp
+*.bak
+*.swp
+```

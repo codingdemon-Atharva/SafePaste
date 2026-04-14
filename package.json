@@ -1,0 +1,176 @@
+{
+  "name": "safepaste",
+  "displayName": "SafePaste",
+  "description": "Detects secrets in your code on copy/paste and lets you sanitize or restore them — keep your .env files safe when sharing with AI tools.",
+  "version": "1.0.2",
+  "publisher": "safepaste",
+  "author": {
+    "name": "SafePaste Contributors"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/safepaste/safepaste-vscode",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/safepaste/safepaste-vscode.git"
+  },
+  "bugs": {
+    "url": "https://github.com/safepaste/safepaste-vscode/issues"
+  },
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#0f1117",
+    "theme": "dark"
+  },
+  "engines": {
+    "vscode": "^1.75.0",
+    "node": ">=16.0.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "keywords": [
+    "security",
+    "secrets",
+    "env",
+    "api-key",
+    "sanitize",
+    "dotenv",
+    "clipboard",
+    "safe",
+    "credentials"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./src/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "safepaste.sanitizeSelection",
+        "title": "Sanitize Selection",
+        "category": "SafePaste",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "safepaste.restoreSelection",
+        "title": "Restore Selection",
+        "category": "SafePaste",
+        "icon": "$(history)"
+      },
+      {
+        "command": "safepaste.sanitizeFile",
+        "title": "Sanitize Entire File",
+        "category": "SafePaste",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "safepaste.restoreFile",
+        "title": "Restore Entire File",
+        "category": "SafePaste",
+        "icon": "$(history)"
+      },
+      {
+        "command": "safepaste.showMapping",
+        "title": "Show Token Mapping",
+        "category": "SafePaste",
+        "icon": "$(list-unordered)"
+      },
+      {
+        "command": "safepaste.onCopyKeypress",
+        "title": "Copy (SafePaste scan)",
+        "category": "SafePaste"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "safepaste.sanitizeSelection",
+        "key": "ctrl+k ctrl+h",
+        "mac": "cmd+k cmd+h",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "safepaste.restoreSelection",
+        "key": "ctrl+k ctrl+j",
+        "mac": "cmd+k cmd+j",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "safepaste.onCopyKeypress",
+        "key": "ctrl+c",
+        "mac": "cmd+c",
+        "when": "editorTextFocus && editorHasSelection"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "submenu": "safepaste.submenu",
+          "group": "9_cutcopypaste@10"
+        }
+      ],
+      "safepaste.submenu": [
+        {
+          "command": "safepaste.sanitizeSelection",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "safepaste.restoreSelection",
+          "when": "editorHasSelection"
+        },
+        {
+          "command": "safepaste.sanitizeFile"
+        },
+        {
+          "command": "safepaste.restoreFile"
+        },
+        {
+          "command": "safepaste.showMapping"
+        }
+      ]
+    },
+    "submenus": [
+      {
+        "id": "safepaste.submenu",
+        "label": "🔐 SafePaste"
+      }
+    ],
+    "configuration": {
+      "title": "SafePaste",
+      "properties": {
+        "safepaste.autoScanOnCopy": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Scan clipboard when you **copy** and show a popup if secrets are detected."
+        },
+        "safepaste.autoScanOnPaste": {
+          "type": "boolean",
+          "default": true,
+          "markdownDescription": "Scan clipboard content **before paste** and warn if secrets are detected."
+        },
+        "safepaste.mappingFilePath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Custom path for `safepaste-map.json`. Defaults to workspace root. **Keep this file out of git.**"
+        },
+        "safepaste.showStatusBar": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show SafePaste status messages in the status bar."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "lint": "eslint src/",
+    "test": "node test/run.js",
+    "package": "npx @vscode/vsce package --no-dependencies",
+    "publish": "npx @vscode/vsce publish --no-dependencies",
+    "publish:openvsx": "npx ovsx publish safepaste-*.vsix"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.0.0",
+    "eslint": "^8.0.0",
+    "ovsx": "^0.9.0"
+  }
+}

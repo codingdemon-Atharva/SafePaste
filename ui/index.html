@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>SafePaste</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;600;800&display=swap" rel="stylesheet" />
+<style>
+  /* ── Reset & Base ─────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0a0b0e;
+    --surface:   #111318;
+    --panel:     #161820;
+    --border:    #1f2230;
+    --border2:   #2a2e40;
+    --text:      #e2e4ed;
+    --muted:     #5a5f78;
+    --accent:    #00e5a0;
+    --accent2:   #ff4d6d;
+    --accent3:   #ffd166;
+    --token-bg:  rgba(255, 77, 109, 0.15);
+    --token-fg:  #ff8fa3;
+    --token-border: rgba(255, 77, 109, 0.4);
+    --safe-bg:   rgba(0, 229, 160, 0.1);
+    --safe-fg:   #00e5a0;
+    --radius:    8px;
+    --mono:      'JetBrains Mono', monospace;
+    --sans:      'Syne', sans-serif;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 14px;
+    line-height: 1.6;
+  }
+
+  /* ── Noise texture overlay ────────────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none; z-index: 0;
+  }
+
+  /* ── Layout ───────────────────────────────────────────── */
+  .app { 
+    position: relative; z-index: 1;
+    display: flex; flex-direction: column;
+    min-height: 100vh; max-width: 1400px;
+    margin: 0 auto; padding: 0 24px;
+  }
+
+  /* ── Header ───────────────────────────────────────────── */
+  header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 22px 0 20px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .logo {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .logo-icon {
+    width: 32px; height: 32px;
+    background: var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+
+  .logo-text {
+    font-size: 18px; font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-text span { color: var(--accent); }
+
+  .header-meta {
+    display: flex; align-items: center; gap: 16px;
+  }
+
+  .badge {
+    font-family: var(--mono);
+    font-size: 11px; font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    color: var(--muted);
+    letter-spacing: 0.5px;
+  }
+
+  .badge.local { color: var(--accent); border-color: rgba(0,229,160,0.3); }
+
+  /* ── Main grid ────────────────────────────────────────── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto 1fr auto;
+    gap: 0;
+    padding: 24px 0;
+  }
+
+  /* ── Panel headers ────────────────────────────────────── */
+  .panel-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .panel-header.left { border-radius: var(--radius) var(--radius) 0 0; }
+  .panel-header.right {
+    border-radius: var(--radius) var(--radius) 0 0;
+    border-left: none;
+    margin-left: -1px;
+  }
+
+  .panel-label { display: flex; align-items: center; gap: 8px; }
+  .panel-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--muted);
+  }
+  .panel-dot.danger { background: var(--accent2); box-shadow: 0 0 6px var(--accent2); }
+  .panel-dot.safe   { background: var(--accent);  box-shadow: 0 0 6px var(--accent); }
+
+  .panel-actions { display: flex; gap: 6px; }
+
+  .btn-ghost {
+    background: none; border: 1px solid var(--border2);
+    color: var(--muted); font-family: var(--mono);
+    font-size: 10px; font-weight: 600;
+    padding: 3px 8px; border-radius: 4px;
+    cursor: pointer; letter-spacing: 0.5px;
+    transition: all 0.15s;
+  }
+  .btn-ghost:hover { color: var(--text); border-color: var(--border2); background: var(--border); }
+
+  /* ── Code textareas ───────────────────────────────────── */
+  .editor-wrap {
+    position: relative;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-top: none;
+  }
+
+  .editor-wrap.left  { border-radius: 0 0 0 var(--radius); }
+  .editor-wrap.right { border-radius: 0 0 var(--radius) 0; border-left: none; margin-left: -1px; }
+
+  .line-numbers {
+    position: absolute; left: 0; top: 0; bottom: 0;
+    width: 44px;
+    padding: 16px 0;
+    text-align: right;
+    font-family: var(--mono); font-size: 12px;
+    color: var(--border2);
+    border-right: 1px solid var(--border);
+    pointer-events: none;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  .line-numbers span {
+    display: block;
+    padding-right: 10px;
+    line-height: 21px;
+  }
+
+  textarea, .output-display {
+    display: block;
+    width: 100%; min-height: 380px;
+    padding: 16px 16px 16px 60px;
+    background: transparent;
+    color: var(--text);
+    font-family: var(--mono); font-size: 13px;
+    line-height: 21px;
+    border: none; outline: none; resize: vertical;
+    tab-size: 2;
+  }
+
+  textarea::placeholder { color: var(--border2); }
+  textarea { caret-color: var(--accent); }
+
+  /* Output panel with highlighted tokens */
+  .output-display {
+    white-space: pre-wrap;
+    word-break: break-all;
+    overflow-y: auto;
+    min-height: 380px;
+  }
+
+  .output-display .token-highlight {
+    background: var(--token-bg);
+    color: var(--token-fg);
+    border: 1px solid var(--token-border);
+    border-radius: 3px;
+    padding: 0 3px;
+    font-weight: 600;
+    cursor: help;
+    position: relative;
+  }
+
+  /* ── Center action bar ────────────────────────────────── */
+  .action-bar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; justify-content: center; gap: 16px;
+    padding: 20px 0;
+    border-top: 1px solid var(--border);
+    margin-top: 0;
+  }
+
+  .btn-primary {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--accent); color: #000;
+    font-family: var(--sans); font-size: 13px; font-weight: 700;
+    padding: 10px 24px; border: none; border-radius: var(--radius);
+    cursor: pointer; letter-spacing: 0.3px;
+    transition: all 0.2s;
+    box-shadow: 0 0 20px rgba(0,229,160,0.2);
+  }
+  .btn-primary:hover {
+    background: #00ffb3;
+    box-shadow: 0 0 30px rgba(0,229,160,0.4);
+    transform: translateY(-1px);
+  }
+  .btn-primary:active { transform: translateY(0); }
+
+  .btn-secondary {
+    display: flex; align-items: center; gap: 8px;
+    background: transparent; color: var(--text);
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    padding: 10px 20px;
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-secondary:hover { border-color: var(--muted); background: var(--panel); }
+
+  .btn-danger {
+    background: transparent; color: var(--accent2);
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    padding: 10px 20px;
+    border: 1px solid rgba(255,77,109,0.3); border-radius: var(--radius);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-danger:hover { background: rgba(255,77,109,0.1); border-color: var(--accent2); }
+
+  /* ── Results sidebar ──────────────────────────────────── */
+  .results-bar {
+    grid-column: 1 / -1;
+    display: flex; gap: 12px; flex-wrap: wrap;
+    padding: 0 0 16px;
+    min-height: 48px;
+  }
+
+  .result-chip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 12px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-family: var(--mono); font-size: 11px;
+    animation: chipIn 0.2s ease;
+  }
+
+  @keyframes chipIn {
+    from { opacity: 0; transform: translateY(4px) scale(0.95); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+  }
+
+  .result-chip .chip-token { color: var(--token-fg); font-weight: 600; }
+  .result-chip .chip-name  { color: var(--muted); }
+
+  /* ── Toast ────────────────────────────────────────────── */
+  #toast {
+    position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%);
+    background: var(--panel); border: 1px solid var(--border2);
+    color: var(--text); font-family: var(--mono); font-size: 12px;
+    padding: 10px 20px; border-radius: 6px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.2s;
+    z-index: 100;
+  }
+  #toast.show { opacity: 1; }
+  #toast.success { border-color: rgba(0,229,160,0.4); color: var(--accent); }
+  #toast.error   { border-color: rgba(255,77,109,0.4); color: var(--accent2); }
+
+  /* ── Empty state ──────────────────────────────────────── */
+  .empty-state {
+    padding: 60px 16px 16px 60px;
+    color: var(--border2);
+    font-family: var(--mono); font-size: 12px;
+    line-height: 1.8;
+    pointer-events: none;
+  }
+
+  /* ── Status bar ───────────────────────────────────────── */
+  .status-bar {
+    grid-column: 1 / -1;
+    display: flex; align-items: center; gap: 16px;
+    padding: 8px 0;
+    font-family: var(--mono); font-size: 11px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+
+  .status-item { display: flex; align-items: center; gap: 6px; }
+  .status-dot  { width: 5px; height: 5px; border-radius: 50%; background: var(--accent); }
+
+  /* ── Scrollbar ────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 3px; }
+
+  /* ── Divider ──────────────────────────────────────────── */
+  .divider {
+    display: flex; align-items: center;
+    color: var(--muted); font-family: var(--mono); font-size: 11px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <div class="logo-icon">🔐</div>
+      <div class="logo-text">Safe<span>Paste</span></div>
+    </div>
+    <div class="header-meta">
+      <span class="badge local">● LOCAL</span>
+      <span class="badge">NO NETWORK</span>
+      <span class="badge">v1.0</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Results chips row -->
+    <div class="results-bar" id="resultsBar"></div>
+
+    <!-- Left panel header -->
+    <div class="panel-header left">
+      <div class="panel-label">
+        <div class="panel-dot danger" id="inputDot"></div>
+        <span id="inputLabel">INPUT</span>
+      </div>
+      <div class="panel-actions">
+        <button class="btn-ghost" onclick="pasteFromClipboard()">PASTE</button>
+        <button class="btn-ghost" onclick="clearInput()">CLEAR</button>
+      </div>
+    </div>
+
+    <!-- Right panel header -->
+    <div class="panel-header right">
+      <div class="panel-label">
+        <div class="panel-dot safe" id="outputDot"></div>
+        <span id="outputLabel">OUTPUT</span>
+      </div>
+      <div class="panel-actions">
+        <button class="btn-ghost" onclick="copyOutput()">COPY</button>
+        <button class="btn-ghost" onclick="clearOutput()">CLEAR</button>
+      </div>
+    </div>
+
+    <!-- Left editor -->
+    <div class="editor-wrap left">
+      <div class="line-numbers" id="lineNums"></div>
+      <textarea id="inputCode"
+        placeholder="// Paste your code here...
+// SafePaste will detect and highlight secrets
+
+const apiKey = 'sk-...'
+const dbUrl = 'mongodb://...'
+// etc."
+        spellcheck="false"
+        oninput="onInputChange()"
+      ></textarea>
+    </div>
+
+    <!-- Right output -->
+    <div class="editor-wrap right" id="outputWrap">
+      <div class="empty-state" id="emptyState">
+        // Sanitized output will appear here
+        //
+        // Detected secrets are replaced with
+        // __SECRET_N__ tokens
+        //
+        // Keep safepaste-map.json private!
+      </div>
+      <div class="output-display" id="outputDisplay" style="display:none"></div>
+    </div>
+
+    <!-- Action bar -->
+    <div class="action-bar">
+      <button class="btn-primary" onclick="sanitize()">
+        <span>⚡</span> SANITIZE
+      </button>
+      <button class="btn-secondary" onclick="restore()">
+        <span>↩</span> RESTORE
+      </button>
+      <button class="btn-danger" onclick="clearAll()">
+        CLEAR ALL
+      </button>
+    </div>
+
+    <!-- Status bar -->
+    <div class="status-bar">
+      <div class="status-item"><div class="status-dot"></div> server: localhost:3131</div>
+      <div class="status-item" id="statusSecrets">secrets: —</div>
+      <div class="status-item" id="statusMapping">mapping: safepaste-map.json</div>
+    </div>
+
+  </main>
+
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────────────────────
+let lastTokens = [];
+
+// ── Line numbers ──────────────────────────────────────────────────────────────
+function updateLineNumbers() {
+  const ta = document.getElementById("inputCode");
+  const lines = ta.value.split("\n").length;
+  const ln = document.getElementById("lineNums");
+  ln.innerHTML = Array.from({ length: Math.max(lines, 20) }, (_, i) =>
+    `<span>${i + 1}</span>`
+  ).join("");
+}
+
+function onInputChange() {
+  updateLineNumbers();
+}
+
+// ── Toast ─────────────────────────────────────────────────────────────────────
+function showToast(msg, type = "success") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.className = `show ${type}`;
+  setTimeout(() => (t.className = ""), 2200);
+}
+
+// ── Render output with highlighted tokens ─────────────────────────────────────
+function renderOutput(text, tokens) {
+  const display = document.getElementById("outputDisplay");
+  const empty   = document.getElementById("emptyState");
+
+  if (!text) {
+    display.style.display = "none";
+    empty.style.display = "block";
+    return;
+  }
+
+  // Escape HTML
+  let html = text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // Highlight all __SECRET_N__ tokens
+  const tokenNames = {};
+  (tokens || []).forEach(t => { tokenNames[t.token] = t.name; });
+
+  html = html.replace(/__SECRET_\d+__/g, (match) => {
+    const name = tokenNames[match] || "secret";
+    return `<span class="token-highlight" title="${name}">${match}</span>`;
+  });
+
+  display.innerHTML = html;
+  display.style.display = "block";
+  empty.style.display = "none";
+}
+
+// ── Sanitize ──────────────────────────────────────────────────────────────────
+async function sanitize() {
+  const code = document.getElementById("inputCode").value.trim();
+  if (!code) return showToast("Paste some code first.", "error");
+
+  try {
+    const res = await fetch("/api/sanitize", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+
+    if (data.error) return showToast(data.error, "error");
+
+    lastTokens = data.tokens || [];
+    renderOutput(data.sanitized, lastTokens);
+    renderChips(lastTokens);
+
+    const count = lastTokens.length;
+    document.getElementById("statusSecrets").textContent =
+      `secrets: ${count} replaced`;
+
+    if (count === 0) {
+      showToast("✓ No secrets detected — safe to share!", "success");
+    } else {
+      showToast(`✓ ${count} secret${count > 1 ? "s" : ""} sanitized`, "success");
+    }
+  } catch (e) {
+    showToast("Server error. Is node server.js running?", "error");
+  }
+}
+
+// ── Restore ───────────────────────────────────────────────────────────────────
+async function restore() {
+  const display = document.getElementById("outputDisplay");
+  // Get raw text from output (strip HTML)
+  const outputText = display.innerText || "";
+  const inputText  = document.getElementById("inputCode").value.trim();
+  const code = outputText || inputText;
+
+  if (!code) return showToast("Nothing to restore.", "error");
+
+  try {
+    const res = await fetch("/api/restore", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    const data = await res.json();
+
+    if (data.error) return showToast(data.error, "error");
+
+    renderOutput(data.restored, []);
+    renderChips([]);
+
+    const count = data.restored_tokens.length;
+    document.getElementById("statusSecrets").textContent =
+      `restored: ${count} token${count !== 1 ? "s" : ""}`;
+
+    if (data.missing.length > 0) {
+      showToast(`⚠ ${data.missing.length} token(s) missing from map`, "error");
+    } else {
+      showToast(`✓ ${count} secret${count !== 1 ? "s" : ""} restored`, "success");
+    }
+  } catch (e) {
+    showToast("Server error. Is node server.js running?", "error");
+  }
+}
+
+// ── Chips ─────────────────────────────────────────────────────────────────────
+function renderChips(tokens) {
+  const bar = document.getElementById("resultsBar");
+  bar.innerHTML = tokens.map(t => `
+    <div class="result-chip">
+      <span class="chip-token">${t.token}</span>
+      <span class="chip-name">${t.name}</span>
+    </div>
+  `).join("");
+}
+
+// ── Copy output ───────────────────────────────────────────────────────────────
+async function copyOutput() {
+  const display = document.getElementById("outputDisplay");
+  const text = display.innerText;
+  if (!text) return showToast("Nothing to copy.", "error");
+  await navigator.clipboard.writeText(text);
+  showToast("✓ Copied to clipboard", "success");
+}
+
+// ── Paste from clipboard ──────────────────────────────────────────────────────
+async function pasteFromClipboard() {
+  try {
+    const text = await navigator.clipboard.readText();
+    document.getElementById("inputCode").value = text;
+    onInputChange();
+    showToast("✓ Pasted from clipboard", "success");
+  } catch {
+    showToast("Clipboard access denied.", "error");
+  }
+}
+
+// ── Clear helpers ─────────────────────────────────────────────────────────────
+function clearInput() {
+  document.getElementById("inputCode").value = "";
+  updateLineNumbers();
+}
+
+function clearOutput() {
+  renderOutput("", []);
+  renderChips([]);
+}
+
+function clearAll() {
+  clearInput();
+  clearOutput();
+  document.getElementById("statusSecrets").textContent = "secrets: —";
+  document.getElementById("resultsBar").innerHTML = "";
+}
+
+// ── Keyboard shortcut: Ctrl+Enter to sanitize ─────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
+    e.preventDefault();
+    sanitize();
+  }
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+updateLineNumbers();
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Ignore development files
+.gitignore
+.github/
+.vscode/
+ci.yml
+contributing.md
+test/
+*.log
+
+# Ignore node modules
+node_modules/
+
+# Ignore unnecessary files
+safepaste-map.json
+server.js
+
+# Keep required files
+!package.json
+!readme.md
+!changelog.md
+!icon.png
+!src/**
+!ui/**
